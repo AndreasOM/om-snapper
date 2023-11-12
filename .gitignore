@@ -18,3 +18,9 @@ Cargo.lock
 
 /target
 /Cargo.lock
+
+
+# local test files
+*.omsmap
+*.img
+LOCAL.md
