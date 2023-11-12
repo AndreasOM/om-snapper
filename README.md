@@ -1,6 +1,6 @@
 # om-snapper
 
-Very basic commandline tool to download AWS EC2/EBS snapshots.
+A very basic commandline tool to download AWS EC2/EBS snapshots.
 
 Works for me. Might not work for you.
 
