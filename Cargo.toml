@@ -1,6 +1,6 @@
 [package]
 name = "om-snapper"
-version = "0.1.1-dev"
+version = "0.1.1-alpha"
 edition = "2021"
 authors = ["Andreas Neukoetter <andreas@omni-mad.com>"]
 
