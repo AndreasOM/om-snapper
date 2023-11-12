@@ -133,6 +133,10 @@ impl Snapshot {
         }
     }
 
+    pub fn enable_continue( &mut self ) {
+        self.r#continue = true;
+    }
+
     pub fn use_progress(&mut self, m: MultiProgress) {
         self.progress = Some(m);
     }
@@ -174,14 +178,13 @@ impl Snapshot {
             anyhow::bail!("Snapshot {} not found", &self.id);
         }
 
-        // create (aka preallocate) the file on disk
         let filename = format!("./{}.img", &self.id);
         let path = Path::new(&filename);
         let mut f = match path.try_exists() {
             Ok(true) => {
                 // check continue
                 if !self.r#continue {
-                    anyhow::bail!("{filename} exists, but 'continue' was net requested");
+                    anyhow::bail!("{filename} exists, but 'continue' was not requested");
                 }
                 OpenOptions::new().write(true).open(&path)?
             }
@@ -197,6 +200,7 @@ impl Snapshot {
 
         //let mut f = File::create(&path)?;
         //let mut f = OpenOptions::new().write(true).open(&path)?;
+        // preallocate the file on disk
         f.set_len(size_in_bytes as u64)?;
 
         /*

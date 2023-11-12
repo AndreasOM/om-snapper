@@ -1,9 +1,23 @@
 [package]
 name = "om-snapper"
-version = "0.1.0"
+version = "0.1.0-alpha"
 edition = "2021"
+authors = ["Andreas Neukoetter <andreas@omni-mad.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+license = "MIT"
+description = "A very basic commandline tool to download AWS EC2/EBS snapshots."
+readme = "README.md"
+homepage = "https://github.com/AndreasOM/om-snapper"
+repository = "https://github.com/AndreasOM/om-snapper"
+keywords = ["tools"]
+categories = ["command-line-utilities"]
+
+exclude = [
+    ".github",
+    ".gitignore",
+]
 
 [[bin]]
 path="src/om_snapper_main.rs"

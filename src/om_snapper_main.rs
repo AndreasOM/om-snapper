@@ -15,7 +15,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Get { snapshot_id: String },
+    Get { snapshot_id: String, r#continue: bool },
 }
 
 #[tokio::main]
@@ -34,9 +34,12 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Get { snapshot_id } => {
+        Commands::Get { snapshot_id, r#continue } => {
             println!("'myapp get' was used, snapshot_id is: {snapshot_id:?}");
             let mut snap = Snapshot::new(&snapshot_id);
+            if *r#continue {
+                snap.enable_continue();
+            }
             dbg!(&snap);
 
             let m = MultiProgress::new();
