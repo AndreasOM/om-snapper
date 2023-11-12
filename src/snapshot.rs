@@ -94,7 +94,7 @@ impl ChunkMap {
     {
         for (i, c) in self.mmap.iter().enumerate() {
             let cs = ChunkState::from(*c);
-            eprintln!("{} -> {:?} ({:#b})", i, cs, c);
+            // eprintln!("{} -> {:?} ({:#b})", i, cs, c);
             match cs {
                 ChunkState::InProgress => f(i, cs)?,
                 _ => {}
@@ -133,7 +133,7 @@ impl Snapshot {
         }
     }
 
-    pub fn enable_continue( &mut self ) {
+    pub fn enable_continue(&mut self) {
         self.r#continue = true;
     }
 
@@ -149,20 +149,20 @@ impl Snapshot {
 
         let snapshots = snapshots.send().await?;
 
-        let mut size_in_bytes = 0;
+        let size_in_bytes; // = 0;
         if let Some(snapshots) = snapshots.snapshots {
-            if let Some((description, state, size)) = snapshots.iter().find_map(|s| {
+            if let Some((_description, _state, size)) = snapshots.iter().find_map(|s| {
                 // this is a bit silly since we should expect exactly one result
                 if s.snapshot_id != Some(self.id.clone()) {
                     None
                 } else {
-                    dbg!(s);
+                    //dbg!(s);
                     Some((s.description.clone(), s.state.clone(), s.volume_size))
                 }
             }) {
-                dbg!(description);
-                dbg!(state);
-                dbg!(size);
+                //dbg!(description);
+                //dbg!(state);
+                //dbg!(size);
                 //let size = None::<()>;
                 size.expect("Volume size is needed");
 

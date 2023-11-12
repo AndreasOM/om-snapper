@@ -15,7 +15,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Get { snapshot_id: String, r#continue: bool },
+    Get {
+        snapshot_id: String,
+        #[arg(short, long)]
+        r#continue: bool,
+    },
 }
 
 #[tokio::main]
@@ -34,13 +38,16 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Get { snapshot_id, r#continue } => {
-            println!("'myapp get' was used, snapshot_id is: {snapshot_id:?}");
+        Commands::Get {
+            snapshot_id,
+            r#continue,
+        } => {
+            println!("Getting snapshot. snapshot_id: {snapshot_id:?}");
             let mut snap = Snapshot::new(&snapshot_id);
             if *r#continue {
                 snap.enable_continue();
             }
-            dbg!(&snap);
+            //dbg!(&snap);
 
             let m = MultiProgress::new();
             snap.use_progress(m);
@@ -50,7 +57,8 @@ async fn main() -> anyhow::Result<()> {
                     tracing::info!("Done");
                 }
                 Err(e) => {
-                    tracing::warn!("Download failed: {}", e);
+                    println!("Download failed: {}", e);
+                    //tracing::warn!("Download failed: {}", e);
                 }
             };
         }
