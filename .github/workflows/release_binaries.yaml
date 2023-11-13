@@ -38,6 +38,8 @@ jobs:
           echo "| :----------- | ---------------------: |" >> $GITHUB_STEP_SUMMARY
 
   release_binaries:
+    permissions:
+      contents: write
     name: Release Binaries
     needs: create_release
     runs-on: ${{ matrix.os }}
