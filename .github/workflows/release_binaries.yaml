@@ -8,6 +8,8 @@ on:
 
 jobs:
   create_release:
+    permissions:
+      packages: write
     name: Create Release
     runs-on: ubuntu-latest
     defaults:
@@ -101,6 +103,8 @@ jobs:
           echo "| :----------- | ---------------------: |" >> $GITHUB_STEP_SUMMARY
 
   release_release:
+    permissions:
+      packages: write
     name: Release Release
     needs: release_binaries
     runs-on: ubuntu-latest
