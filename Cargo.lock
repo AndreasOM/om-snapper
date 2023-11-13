@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "om-snapper"
-version = "0.5.0-alpha"
+version = "0.6.0-dev"
 dependencies = [
  "anyhow",
  "atty",
