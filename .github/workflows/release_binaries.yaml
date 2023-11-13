@@ -9,7 +9,7 @@ on:
 jobs:
   create_release:
     permissions:
-      packages: write
+      contents: write
     name: Create Release
     runs-on: ubuntu-latest
     defaults:
@@ -104,7 +104,7 @@ jobs:
 
   release_release:
     permissions:
-      packages: write
+      contents: write
     name: Release Release
     needs: release_binaries
     runs-on: ubuntu-latest
