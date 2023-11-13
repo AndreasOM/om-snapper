@@ -10,6 +10,24 @@ Works for me. Might not work for you.
 om-snapper get snap-0123456789abcdefx --continue
 ```
 
+## Installation
+
+### From source
+`cargo build --release`
+
+### From github release
+Download from [github](https://github.com/AndreasOM/om-snapper/releases) and unpack binaries to a location of your choice.
+
+### cargo
+#### binstall
+`cargo binstall om-snapper@0.5.0-alpha` (*Note:* Once a non alpha version is released you can omit the @...)
+
+This is work in progress.
+
+### homebrew
+
+:TODO:
+
 ## Features
 - [x] Allows to continue after cancel/abort
 - [ ] File verification
