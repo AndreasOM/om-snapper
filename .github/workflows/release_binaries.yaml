@@ -48,13 +48,23 @@ jobs:
         shell: bash
     strategy:
       matrix:
+        build:
+          - linux x86
+          - windows x86
+          - macos aarch64
         include:
-          - os: ubuntu-latest
-            package_prefix: om-snapper-linux
-          - os: macos-11
-            package_prefix: om-snapper-macos
-          - os: windows-latest
-            package_prefix: om-snapper-windows
+          - build: linux x86
+            os: ubuntu-latest
+            package_prefix: om-snapper-x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-musl
+          - build: macos aarch64
+            os: macos-11
+            package_prefix: om-snapper-aarch64-apple-darwin
+            target: aarch64-apple-darwin
+          - build: windows x86
+            os: windows-latest
+            package_prefix: om-snapper-x86_64-pc-windows-msvc
+            target: x86_64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v3
@@ -75,13 +85,13 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --all-features
+          args: --release --all-features --target ${{ matrix.target}}
 
       - name: Create Distribution
         run: |
           dist_dir="${{ runner.temp }}/dist/${{ matrix.package_prefix}}"
           mkdir -p ${dist_dir}
-          cp target/release/om-snapper ${dist_dir}
+          cp target/${{ matrix.target}}/release/om-snapper ${dist_dir}
           cd ${dist_dir}
           pwd
           ls
