@@ -84,7 +84,7 @@ jobs:
 
       - name: Build
         run: |
-          cargo --release --all-features --target ${{ matrix.target}}
+          cargo build --release --all-features --target ${{ matrix.target}}
 
 ##      - name: Install Stable rust
 ##        uses: actions-rs/toolchain@v1
