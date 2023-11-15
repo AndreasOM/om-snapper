@@ -55,8 +55,8 @@ jobs:
         include:
           - build: linux x86
             os: ubuntu-latest
-            package_prefix: om-snapper-x86_64-unknown-linux-musl
-            target: x86_64-unknown-linux-musl
+            package_prefix: om-snapper-x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-gnu
           - build: macos aarch64
             os: macos-11
             package_prefix: om-snapper-aarch64-apple-darwin
