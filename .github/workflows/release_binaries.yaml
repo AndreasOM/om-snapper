@@ -1,7 +1,7 @@
 name: Release Binaries
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:
   push:
     tags:
       - "*-alpha"
@@ -76,17 +76,27 @@ jobs:
           app_version=$(grep version Cargo.toml|cut -d"\"" -f2|head -n 1)
           echo "APP_VERSION=${app_version}" >> $GITHUB_ENV
 
-      - name: Install Stable rust
-        uses: actions-rs/toolchain@v1
+
+      - name: Install stable rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
           target: ${{ matrix.target}}
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features --target ${{ matrix.target}}
+      - name: Build
+        run: |
+          cargo --release --all-features --target ${{ matrix.target}}
+
+##      - name: Install Stable rust
+##        uses: actions-rs/toolchain@v1
+##        with:
+##          profile: minimal
+##          toolchain: stable
+##          target: ${{ matrix.target}}
+##
+##      - uses: actions-rs/cargo@v1
+##        with:
+##          command: build
+##          args: --release --all-features --target ${{ matrix.target}}
 
       - name: Create Distribution
         run: |
