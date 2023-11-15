@@ -81,6 +81,7 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: ${{ matrix.target}}
 
       - uses: actions-rs/cargo@v1
         with:
