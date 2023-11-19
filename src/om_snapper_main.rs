@@ -20,6 +20,9 @@ enum Commands {
         #[arg(short, long)]
         r#continue: bool,
     },
+    Status {
+        snapshot_id: String,
+    },
 }
 
 #[tokio::main]
@@ -58,6 +61,24 @@ async fn main() -> anyhow::Result<()> {
                 }
                 Err(e) => {
                     println!("Download failed: {}", e);
+                    //tracing::warn!("Download failed: {}", e);
+                }
+            };
+        }
+        Commands::Status { snapshot_id } => {
+            let mut snap = Snapshot::new(&snapshot_id);
+            let m = MultiProgress::new();
+            snap.use_progress(m);
+
+            match snap.status().await {
+                Ok(true) => {
+                    tracing::info!("Done - OK");
+                }
+                Ok(false) => {
+                    tracing::info!("Done - Not OK");
+                }
+                Err(e) => {
+                    println!("Status failed: {}", e);
                     //tracing::warn!("Download failed: {}", e);
                 }
             };

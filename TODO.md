@@ -3,7 +3,7 @@
 
 ## InProgress
 
-- [ ] Add commandline argument handling
+- [ ] Add `status` command
 
 ## ToDo
 
@@ -14,4 +14,7 @@
 
 ## Done
 
+- [x] Add commandline argument handling
+
 ## Released
+

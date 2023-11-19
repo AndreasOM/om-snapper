@@ -1,8 +1,11 @@
+use anyhow::Error;
+use bytesize::ByteSize;
 use indicatif::MultiProgress;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use memmapix::MmapMut;
 use std::collections::VecDeque;
+use std::path::PathBuf;
 
 use std::fs::OpenOptions;
 
@@ -32,6 +35,7 @@ impl From<u8> for ChunkState {
             //            0b100 => ChunkState::Done,     // :HACK:
             0b100 => ChunkState::Todo, // :HACK:
             //            0b1 => ChunkState::InProgress, // :HACK:
+            0b1010_1010 => ChunkState::Invalid,
             _ => ChunkState::Invalid,
         }
     }
@@ -43,7 +47,7 @@ impl From<ChunkState> for u8 {
             ChunkState::Todo => 0b0000_0000,
             ChunkState::InProgress => 0b0100_0000,
             ChunkState::Failed => 0b1000_0000,
-            ChunkState::Invalid => 0b1111_1111,
+            ChunkState::Invalid => 0b1010_1010, // Note: Invalid should never be written
             ChunkState::Done => 0b1111_1111,
         }
     }
@@ -118,6 +122,9 @@ pub struct Snapshot {
     id: String,
     progress: Option<MultiProgress>,
     r#continue: bool,
+
+    image_file: PathBuf,
+    map_file: PathBuf,
 }
 
 const BLOCKS_PER_CHUNK: usize = 100; // >=100 as per AWS API
@@ -130,6 +137,10 @@ impl Snapshot {
             id: id.to_string(),
             progress: None,
             r#continue: false,
+
+            image_file: Path::new(&format!("./{}.img", &id)).to_path_buf(),
+            map_file: Path::new(&format!("./{}.omsmap", &id)).to_path_buf(),
+            //                    let filename = format!("./{}.img", &self.id);
         }
     }
 
@@ -141,9 +152,113 @@ impl Snapshot {
         self.progress = Some(m);
     }
 
-    pub async fn download(&mut self) -> anyhow::Result<()> {
+    async fn ec2_client(&self) -> anyhow::Result<aws_sdk_ec2::Client> {
         let config = aws_config::load_from_env().await;
         let ec2_client = aws_sdk_ec2::Client::new(&config);
+
+        Ok::<aws_sdk_ec2::Client, Error>(ec2_client)
+    }
+
+    async fn ebs_client(&self) -> anyhow::Result<aws_sdk_ebs::Client> {
+        let config = aws_config::load_from_env().await;
+        let ebs_client = aws_sdk_ebs::Client::new(&config);
+
+        Ok(ebs_client)
+    }
+
+    pub fn image_file(&self) -> &Path {
+        &self.image_file
+    }
+
+    pub fn map_file(&self) -> &Path {
+        &self.map_file
+    }
+
+    pub async fn status(&mut self) -> anyhow::Result<bool> {
+        let mut all_good = true;
+
+        let image_file = self.image_file();
+        println!("Image file {image_file:?}");
+
+        let mut file_size = 0;
+        match image_file.try_exists() {
+            Ok(true) => {
+                println!("\t ... exists.");
+                let attr = std::fs::metadata(image_file)?;
+
+                if !attr.is_file() {
+                    println!("\t ... is NOT a plain file.");
+                    all_good = false;
+                } else {
+                    let l = attr.len();
+                    println!("\t ... contains {l} bytes.");
+                    println!("\t ... contains {}.", ByteSize::b(l));
+
+                    file_size = l;
+                }
+            }
+            Ok(false) => {
+                println!("\t ... NOT exists.");
+                all_good = false;
+            }
+            Err(o) => {
+                anyhow::bail!("Failed checking image file {image_file:?}  -> {o}")
+            }
+        };
+
+        let map_file = self.map_file();
+        println!("Map file {map_file:?}");
+        match map_file.try_exists() {
+            Ok(true) => {
+                println!("\t ... exists.");
+                let attr = std::fs::metadata(map_file)?;
+
+                if !attr.is_file() {
+                    println!("\t ... is NOT a plain file.");
+                    all_good = false;
+                } else {
+                    let l = attr.len();
+                    println!("\t ... contains {l} chunks.");
+                    let min_size = l * CHUNK_SIZE as u64;
+                    let max_size = min_size + CHUNK_SIZE as u64;
+                    println!("\t ... expected file size {} - {}.", min_size, max_size);
+                    println!("\t ... expected file size ~{}.", ByteSize::b(min_size));
+
+                    if file_size > max_size {
+                        println!(
+                            "\t ... Image file size is too big {} > {}",
+                            file_size, max_size
+                        );
+                    } else if file_size < min_size {
+                        println!(
+                            "\t ... Image file size is too small {} < {}",
+                            file_size, min_size
+                        );
+                    } else {
+                        println!(
+                            "\t ... Image file size matches: {} < {} < {}",
+                            min_size, file_size, max_size
+                        );
+                    }
+                }
+            }
+            Ok(false) => {
+                println!("\t ... NOT exists.");
+                all_good = false;
+            }
+            Err(o) => {
+                anyhow::bail!("Failed checking map file {map_file:?}  -> {o}")
+            }
+        };
+        Ok(all_good)
+    }
+
+    pub async fn verify(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    pub async fn download(&mut self) -> anyhow::Result<()> {
+        let ec2_client = self.ec2_client().await?;
 
         let snapshots = ec2_client.describe_snapshots().snapshot_ids(&self.id);
 
@@ -160,10 +275,6 @@ impl Snapshot {
                     Some((s.description.clone(), s.state.clone(), s.volume_size))
                 }
             }) {
-                //dbg!(description);
-                //dbg!(state);
-                //dbg!(size);
-                //let size = None::<()>;
                 size.expect("Volume size is needed");
 
                 let size = size.unwrap() as usize;
@@ -174,7 +285,6 @@ impl Snapshot {
                 anyhow::bail!("Snapshot {} not found", &self.id);
             }
         } else {
-            //tracing::warn!("Snapshot {} not found", &self.id );
             anyhow::bail!("Snapshot {} not found", &self.id);
         }
 
@@ -198,16 +308,8 @@ impl Snapshot {
             }
         };
 
-        //let mut f = File::create(&path)?;
-        //let mut f = OpenOptions::new().write(true).open(&path)?;
         // preallocate the file on disk
         f.set_len(size_in_bytes as u64)?;
-
-        /*
-        // for 0 byte at end?
-        f.seek(SeekFrom::Start(size_in_bytes as u64 -1))?;
-        f.write(&[0])?;
-        */
 
         let chunks = size_in_bytes / CHUNK_SIZE;
 
@@ -218,8 +320,6 @@ impl Snapshot {
         tracing::info!("Queing {} chunks", chunks);
 
         let mut chunk_queue = VecDeque::new();
-
-        //        chunk_queue.push_back(129);
 
         chunk_map.for_each_inprogress(|i, _s| {
             dbg!(i);
@@ -274,7 +374,7 @@ impl Snapshot {
                     None
                 };
 
-                let client = aws_sdk_ebs::Client::new(&config);
+                let client = self.ebs_client().await?; //aws_sdk_ebs::Client::new(&config);
 
                 let first_block_in_chunk = (c * BLOCKS_PER_CHUNK) as i32;
                 let last_block_in_chunk =
@@ -288,8 +388,6 @@ impl Snapshot {
                 let list = list.send().await?;
 
                 // :TODO: verify block size
-                //dbg!(&list);
-                //dbg!(&list.blocks);
                 for block in &list.blocks.unwrap() {
                     match (block.block_index, &block.block_token) {
                         (Some(i), Some(t)) => {
@@ -326,9 +424,6 @@ impl Snapshot {
                                 if let Some(block_progress) = &block_progress {
                                     block_progress.inc(1);
                                 }
-
-                                // for now just stop after one block
-                                //todo!("die");
                             }
                         }
                         _ => {
@@ -341,17 +436,8 @@ impl Snapshot {
                     chunk_progress.inc(1);
                 }
             }
-            // for now just stop after one chunk
-            //            todo!("die");
         }
 
-        /*
-                let block = client.get_snapshot_block().snapshot_id( &self.id ).block_index(0).block_token("TODO");
-
-                let block = block.send().await?;
-
-                dbg!(block);
-        */
         Ok(())
     }
 }
