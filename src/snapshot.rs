@@ -60,7 +60,7 @@ struct ChunkMap {
 }
 
 impl ChunkMap {
-    pub fn open(name: &str, number_of_chunks: usize) -> anyhow::Result<Self> {
+    pub fn create(name: &Path, number_of_chunks: usize) -> anyhow::Result<Self> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -70,6 +70,19 @@ impl ChunkMap {
         file.set_len(number_of_chunks as u64)?;
 
         let mmap = unsafe { MmapMut::map_mut(&file)? };
+        let s = Self {
+            number_of_chunks,
+            mmap,
+        };
+
+        Ok(s)
+    }
+
+    pub fn open(name: &Path) -> anyhow::Result<Self> {
+        let file = OpenOptions::new().read(true).write(true).open(&name)?;
+
+        let mmap = unsafe { MmapMut::map_mut(&file)? };
+        let number_of_chunks = mmap.len();
         let s = Self {
             number_of_chunks,
             mmap,
@@ -114,6 +127,20 @@ impl ChunkMap {
 
         self.mmap[i] = u8::from(s); // as u8;
         Ok(())
+    }
+
+    pub fn chunk_count(&self) -> usize {
+        self.mmap.len()
+    }
+
+    pub fn get_chunk_state(&self, i: usize) -> Option<ChunkState> {
+        if i >= self.mmap.len() {
+            return None;
+        }
+
+        let c = self.mmap[i];
+        let cs = ChunkState::from(c);
+        Some(cs)
     }
 }
 
@@ -229,11 +256,13 @@ impl Snapshot {
                             "\t ... Image file size is too big {} > {}",
                             file_size, max_size
                         );
+                        all_good = false;
                     } else if file_size < min_size {
                         println!(
                             "\t ... Image file size is too small {} < {}",
                             file_size, min_size
                         );
+                        all_good = false;
                     } else {
                         println!(
                             "\t ... Image file size matches: {} < {} < {}",
@@ -250,6 +279,52 @@ impl Snapshot {
                 anyhow::bail!("Failed checking map file {map_file:?}  -> {o}")
             }
         };
+
+        // :TODO: make configurable
+        const CODE_TODO: &str = "⬛️";
+        const CODE_INPROGRESS: &str = "🚚";
+        const CODE_FAILED: &str = "🔺";
+        const CODE_INVALID: &str = "❗️";
+        const CODE_DONE: &str = "🟩";
+
+        if all_good {
+            let map = ChunkMap::open(map_file)?;
+            // dbg!(&map);
+
+            for i in 0..map.chunk_count() {
+                if let Some(cs) = map.get_chunk_state(i) {
+                    /*
+                    let code = match cs {
+                        ChunkState::Todo => 't',
+                        ChunkState::InProgress => 'p',
+                        ChunkState::Failed => 'F',
+                        ChunkState::Invalid => 'I',
+                        ChunkState::Done => 'D',
+                    };
+                    */
+                    let code = match cs {
+                        ChunkState::Todo => CODE_TODO,
+                        ChunkState::InProgress => CODE_INPROGRESS,
+                        ChunkState::Failed => CODE_FAILED,
+                        ChunkState::Invalid => CODE_INVALID,
+                        ChunkState::Done => CODE_DONE,
+                    };
+                    print!("{code}");
+                } else {
+                    print!("!");
+                }
+
+                if i % 20 == 19 {
+                    println!("");
+                }
+            }
+        }
+        println!("");
+        println!("{CODE_DONE} = Done");
+        println!("{CODE_INPROGRESS} = InProgress");
+        println!("{CODE_FAILED} = Failed");
+        println!("{CODE_TODO} = todo");
+        println!("{CODE_INVALID} = Invalid");
         Ok(all_good)
     }
 
@@ -313,9 +388,9 @@ impl Snapshot {
 
         let chunks = size_in_bytes / CHUNK_SIZE;
 
-        let map_name = format!("./{}.omsmap", &self.id);
+        let map_name = self.map_file(); //format!("./{}.omsmap", &self.id);
 
-        let mut chunk_map = ChunkMap::open(&map_name, chunks)?;
+        let mut chunk_map = ChunkMap::create(map_name, chunks)?;
 
         tracing::info!("Queing {} chunks", chunks);
 
